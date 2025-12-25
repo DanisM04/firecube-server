@@ -7,26 +7,39 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ==================== STATE ====================
-let latest = {
-  device_id: "unknown",
-  smoke: 0,
-  alarm: false,
-  lat: null,
-  lon: null,
-  timestamp: null,
-  source: "none" // "mqtt" ili "http"
-};
-
-// Prag alarma (možeš mijenjati)
+// ====== CONFIG ======
 const THRESHOLD = 1800;
 
-// ==================== MQTT (SIM800 -> broker -> server) ====================
-// Public test broker (dobar za demo). Za produkciju kasnije: svoj broker/VPS.
+// MQTT broker (demo)
 const MQTT_URL = "mqtt://test.mosquitto.org:1883";
-// Topic format: firecube/<device_id>/data
 const MQTT_SUB = "firecube/+/data";
 
+// ====== STATE (multi-device in RAM) ======
+// devices[device_id] = { device_id, smoke, alarm, lat, lon, timestamp, source }
+const devices = Object.create(null);
+
+// helper: upsert device
+function updateDevice(d, source) {
+  const device_id = (d.device_id || "unknown").toString();
+
+  const smoke = Number(d.smoke ?? 0);
+  const lat = (d.lat !== undefined && d.lat !== null) ? Number(d.lat) : null;
+  const lon = (d.lon !== undefined && d.lon !== null) ? Number(d.lon) : null;
+
+  devices[device_id] = {
+    device_id,
+    smoke,
+    alarm: smoke > THRESHOLD,
+    lat,
+    lon,
+    timestamp: Date.now(),
+    source
+  };
+
+  return devices[device_id];
+}
+
+// ====== MQTT INGEST ======
 const mqttClient = mqtt.connect(MQTT_URL, {
   clientId: "firecube-server-" + Math.random().toString(16).slice(2),
   keepalive: 60,
@@ -47,48 +60,56 @@ mqttClient.on("error", (e) => console.error("MQTT error:", e));
 mqttClient.on("message", (topic, message) => {
   try {
     const d = JSON.parse(message.toString());
-
-    latest.device_id = d.device_id ?? latest.device_id;
-    latest.smoke = Number(d.smoke ?? latest.smoke);
-    latest.lat = (d.lat !== undefined && d.lat !== null) ? Number(d.lat) : null;
-    latest.lon = (d.lon !== undefined && d.lon !== null) ? Number(d.lon) : null;
-    latest.timestamp = Date.now();
-    latest.alarm = latest.smoke > THRESHOLD;
-    latest.source = "mqtt";
-
-    console.log("MQTT IN:", topic, latest);
+    const row = updateDevice(d, "mqtt");
+    console.log("MQTT IN:", topic, row);
   } catch (err) {
     console.error("Bad MQTT JSON:", err);
   }
 });
 
-// ==================== HTTP (WiFi test / fallback) ====================
-// ESP32 može (ako je na WiFi) slati i direktno HTTP kao prije
+// ====== HTTP INGEST (optional: WiFi test) ======
 app.post("/api/data", (req, res) => {
   const d = req.body || {};
-
-  latest.device_id = d.device_id ?? latest.device_id;
-  latest.smoke = Number(d.smoke ?? latest.smoke);
-  latest.lat = (d.lat !== undefined && d.lat !== null) ? Number(d.lat) : null;
-  latest.lon = (d.lon !== undefined && d.lon !== null) ? Number(d.lon) : null;
-  latest.timestamp = Date.now();
-  latest.alarm = latest.smoke > THRESHOLD;
-  latest.source = "http";
-
-  console.log("HTTP IN:", latest);
+  const row = updateDevice(d, "http");
+  console.log("HTTP IN:", row);
   res.json({ ok: true });
 });
 
-// Web čita odavde
+// ====== API ======
+// 1) lista svih uređaja (za mapu)
+app.get("/api/devices", (req, res) => {
+  res.json(Object.values(devices));
+});
+
+// 2) jedan uređaj po id (za detalje)
+app.get("/api/device/:id", (req, res) => {
+  const id = req.params.id;
+  res.json(devices[id] || null);
+});
+
+// 3) kompatibilnost sa starim frontend-om
 app.get("/api/latest", (req, res) => {
-  res.json(latest);
+  // vrati najnoviji uređaj po timestampu
+  const list = Object.values(devices);
+  if (list.length === 0) {
+    return res.json({
+      device_id: "unknown",
+      smoke: 0,
+      alarm: false,
+      lat: null,
+      lon: null,
+      timestamp: null,
+      source: "none"
+    });
+  }
+  list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  res.json(list[0]);
 });
 
-// Serviraj web iz /public
+// ====== FRONTEND ======
 app.use("/", express.static(path.join(__dirname, "public")));
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
-// ==================== START ====================
+// ====== START ======
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server radi na portu ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server radi na portu ${PORT}`));
