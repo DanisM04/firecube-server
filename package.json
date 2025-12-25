@@ -6,12 +6,18 @@
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": ["iot", "fire", "esp32", "gps"],
+  "keywords": [
+    "iot",
+    "fire",
+    "esp32",
+    "gps"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "mqtt": "^5.14.1"
   }
 }
