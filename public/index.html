@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>FireCube Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    #topbar { background: #111; color: #fff; padding: 12px; }
+    #alarm {
+      display: none;
+      background: red;
+      color: white;
+      padding: 12px;
+      font-weight: bold;
+    }
+    #map { height: calc(100vh - 100px); }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  Smoke: <span id="smoke">-</span> |
+  Status: <span id="status">-</span>
+</div>
+
+<div id="alarm">🔥 POŽAR / DIM DETEKTOVAN!</div>
+<div id="map"></div>
+
+<script>
+  const map = L.map('map').setView([43.8563, 18.4131], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  let marker = L.circleMarker([43.8563, 18.4131], {
+    radius: 10,
+    color: 'green',
+    fillColor: 'green',
+    fillOpacity: 0.8
+  }).addTo(map);
+
+  async function update() {
+    try {
+      const res = await fetch('/api/latest');
+      const d = await res.json();
+
+      document.getElementById('smoke').textContent = d.smoke;
+      document.getElementById('status').textContent = d.alarm ? 'ALARM' : 'OK';
+      document.getElementById('alarm').style.display = d.alarm ? 'block' : 'none';
+
+      if (d.lat && d.lon) {
+        marker.setLatLng([d.lat, d.lon]);
+        map.setView([d.lat, d.lon], 15);
+        const c = d.alarm ? 'red' : 'green';
+        marker.setStyle({ color: c, fillColor: c });
+      }
+    } catch (e) {
+      console.log("Server offline");
+    }
+  }
+
+  setInterval(update, 2000);
+  update();
+</script>
+
+</body>
+</html>
