@@ -42,11 +42,15 @@
 
     .brand{display:flex; gap:12px; align-items:center;}
     .logo{
-      width:42px;height:42px;border-radius:12px;
-      background: radial-gradient(circle at 30% 30%, #ffedd5, #fb7185 45%, #7c3aed 100%);
-      box-shadow: var(--shadow);
-      position:relative; overflow:hidden;
-    }
+  width:42px;height:42px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  background: rgba(15,23,42,.65);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+.logo:after{ content:none; } /* ugasi stari shimmer */
+
     .logo:after{content:""; position:absolute; inset:-10px; background: conic-gradient(from 220deg, rgba(255,255,255,.0), rgba(255,255,255,.25), rgba(255,255,255,0)); transform: rotate(25deg);}
     .brand h1{font-size:16px; margin:0; letter-spacing:.3px;}
     .brand .sub{font-size:12px; color:var(--muted); margin-top:2px;}
@@ -157,7 +161,30 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
+        <div class="logo" aria-hidden="true">
+  <svg viewBox="0 0 64 64" width="28" height="28" role="img" aria-label="Firecube logo">
+    <defs>
+      <radialGradient id="fireGrad" cx="35%" cy="30%" r="80%">
+        <stop offset="0%" stop-color="#fff7ed"/>
+        <stop offset="45%" stop-color="#fb7185"/>
+        <stop offset="100%" stop-color="#7c3aed"/>
+      </radialGradient>
+    </defs>
+
+    <!-- Outer flame -->
+    <path d="M34 6c2 10-6 12-2 22 3 7 12 8 12 19 0 9-7 15-16 15S12 56 12 46c0-10 7-14 12-20 5-6 4-11 10-20z"
+          fill="url(#fireGrad)" opacity="0.95"/>
+    <!-- Inner flame -->
+    <path d="M30 22c1 6-4 7-1 13 2 4 7 5 7 12 0 6-4 10-10 10s-10-4-10-10c0-7 5-9 8-12 3-4 2-6 6-13z"
+          fill="#ffedd5" opacity="0.9"/>
+    <!-- Cube hint (Firecube) -->
+    <path d="M42 30l8 4v10l-8 4-8-4V34l8-4z"
+          fill="rgba(255,255,255,0.18)"/>
+    <path d="M34 34l8-4 8 4-8 4-8-4z"
+          fill="rgba(255,255,255,0.28)"/>
+  </svg>
+</div>
+
         <div>
           <h1>FIRECUBE</h1>
           <div class="sub">Monitoring dima i lokacije</div>
