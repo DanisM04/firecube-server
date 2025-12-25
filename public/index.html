@@ -32,19 +32,14 @@
       --shadow: 0 12px 30px rgba(0,0,0,.35);
       --r: 16px;
     }
-
     *{box-sizing:border-box}
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:var(--text);background:linear-gradient(180deg,#060912, #0b0f17);}
-    a{color:inherit}
-
-    /* Layout */
-    .app{display:grid;grid-template-columns: 360px 1fr; height:100vh;}
-    .sidebar{border-right:1px solid var(--line); padding:16px; background:rgba(17,24,39,.75); backdrop-filter: blur(10px);}
+    .app{display:grid;grid-template-columns: 380px 1fr; height:100vh;}
+    .sidebar{border-right:1px solid var(--line); padding:16px; background:rgba(17,24,39,.75); backdrop-filter: blur(10px); overflow:auto;}
     .main{display:grid; grid-template-rows: 72px 1fr;}
     .topbar{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line); background:rgba(17,24,39,.55); backdrop-filter: blur(10px);}
     #map{height:100%;}
 
-    /* Logo */
     .brand{display:flex; gap:12px; align-items:center;}
     .logo{
       width:42px;height:42px;border-radius:12px;
@@ -52,39 +47,18 @@
       box-shadow: var(--shadow);
       position:relative; overflow:hidden;
     }
-    .logo:after{
-      content:""; position:absolute; inset:-10px;
-      background: conic-gradient(from 220deg, rgba(255,255,255,.0), rgba(255,255,255,.25), rgba(255,255,255,0));
-      transform: rotate(25deg);
-    }
+    .logo:after{content:""; position:absolute; inset:-10px; background: conic-gradient(from 220deg, rgba(255,255,255,.0), rgba(255,255,255,.25), rgba(255,255,255,0)); transform: rotate(25deg);}
     .brand h1{font-size:16px; margin:0; letter-spacing:.3px;}
     .brand .sub{font-size:12px; color:var(--muted); margin-top:2px;}
 
-    /* Menu */
     .menu{display:flex; gap:10px; align-items:center;}
-    .btn{
-      border:1px solid var(--line); background:rgba(15,23,42,.7); color:var(--text);
-      padding:9px 12px; border-radius:12px; cursor:pointer;
-    }
+    .btn{border:1px solid var(--line); background:rgba(15,23,42,.7); color:var(--text); padding:9px 12px; border-radius:12px; cursor:pointer;}
     .btn:hover{border-color:#334155}
-    .chip{
-      padding:7px 10px; border-radius:999px; border:1px solid var(--line);
-      background:rgba(15,23,42,.65); color:var(--muted); font-size:12px;
-    }
-
-    /* Cards */
-    .card{
-      background: linear-gradient(180deg, rgba(17,24,39,.9), rgba(15,23,42,.9));
-      border:1px solid var(--line); border-radius: var(--r);
-      box-shadow: var(--shadow);
-    }
+    .chip{padding:7px 10px; border-radius:999px; border:1px solid var(--line); background:rgba(15,23,42,.65); color:var(--muted); font-size:12px;}
+    .card{background: linear-gradient(180deg, rgba(17,24,39,.9), rgba(15,23,42,.9)); border:1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow);}
     .sectionTitle{font-size:12px; color:var(--muted); margin:14px 0 8px;}
     .list{display:flex; flex-direction:column; gap:10px; margin-top:10px;}
-    .item{
-      padding:12px; border-radius:14px; border:1px solid var(--line);
-      background:rgba(15,23,42,.75); cursor:pointer;
-      transition: transform .05s ease, border-color .15s ease;
-    }
+    .item{padding:12px; border-radius:14px; border:1px solid var(--line); background:rgba(15,23,42,.75); cursor:pointer;}
     .item:hover{border-color:#334155}
     .item.active{outline:2px solid rgba(251,113,133,.55); border-color: rgba(251,113,133,.55);}
     .row{display:flex; justify-content:space-between; align-items:center; gap:10px;}
@@ -103,18 +77,23 @@
     .small{font-size:12px;color:var(--muted)}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
 
-    /* Leaflet popup styling */
     .leaflet-popup-content-wrapper{border-radius:14px; background: rgba(17,24,39,.95); color:var(--text); border:1px solid rgba(31,41,55,.9)}
     .leaflet-popup-tip{background: rgba(17,24,39,.95)}
     .popupTitle{font-weight:800; margin-bottom:8px}
     .popupLine{font-size:12px; color:var(--muted); margin-top:4px}
     .popupBadge{display:inline-block; margin-top:10px; padding:6px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px;}
+
+    /* history */
+    .history{padding:12px;}
+    .hrow{padding:10px; border-radius:12px; border:1px solid var(--line); background:rgba(2,6,23,.25); margin-top:10px;}
+    .hrow .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .hrow .t1{font-weight:800;font-size:13px}
+    .hrow .t2{font-size:12px;color:var(--muted)}
   </style>
 </head>
 
 <body>
   <div class="app">
-    <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
         <div class="logo" aria-hidden="true"></div>
@@ -152,9 +131,14 @@
           Zadnji update: <span class="mono" id="dTime">--</span>
         </div>
       </div>
+
+      <div class="sectionTitle">History log alarma</div>
+      <div class="card history">
+        <div class="small">Bilježi ALARM ON/OFF po uređaju (promjena stanja).</div>
+        <div id="alarmList"></div>
+      </div>
     </aside>
 
-    <!-- MAIN -->
     <main class="main">
       <header class="topbar">
         <div class="menu">
@@ -166,60 +150,18 @@
           <div class="chip mono" id="count">Uređaji: 0</div>
         </div>
       </header>
-
       <div id="map"></div>
     </main>
   </div>
 
   <script>
-    // ---------- MAP ----------
     const map = L.map('map').setView([43.8563, 18.4131], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-    // markers by device_id
     const markers = new Map();
     let selectedId = null;
+    let lastDevices = [];
 
-    function alarmClass(d){
-      if (!d) return "warn";
-      if (d.alarm) return "bad";
-      if (typeof d.smoke === "number" && d.smoke > 1200) return "warn";
-      return "good";
-    }
-
-    function fmtTime(ts){
-      if (!ts) return "--";
-      const dt = new Date(ts);
-      return dt.toLocaleString();
-    }
-
-    function isOnline(ts){
-      if (!ts) return false;
-      return (Date.now() - ts) <= 15000; // 15s
-    }
-
-    function popupHtml(d){
-      const online = isOnline(d.timestamp);
-      const badgeCls = d.alarm ? "bad" : (online ? "good" : "warn");
-      const badgeText = d.alarm ? "ALARM" : (online ? "ONLINE" : "OFFLINE");
-      const gps = (typeof d.lat === "number" && typeof d.lon === "number")
-        ? `${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}`
-        : "N/A";
-
-      return `
-        <div class="popupTitle">${d.device_id}</div>
-        <div class="popupLine">Smoke: <b>${d.smoke ?? "--"}</b></div>
-        <div class="popupLine">GPS: <span class="mono">${gps}</span></div>
-        <div class="popupLine">Update: <span class="mono">${fmtTime(d.timestamp)}</span></div>
-        <div class="popupLine">Source: <span class="mono">${d.source ?? "?"}</span></div>
-        <div class="popupBadge ${badgeCls}">${badgeText}</div>
-      `;
-    }
-
-    // ---------- UI ----------
     const elList = document.getElementById("deviceList");
     const elCount = document.getElementById("count");
     const elGlobalStatus = document.getElementById("globalStatus");
@@ -230,35 +172,27 @@
     const elDOnline = document.getElementById("dOnline");
     const elDTime = document.getElementById("dTime");
 
+    const elAlarmList = document.getElementById("alarmList");
+
     document.getElementById("btnFit").onclick = () => fitMap();
     document.getElementById("btnCenter").onclick = () => centerSelected();
 
-    function selectDevice(id){
-      selectedId = id;
-      renderList(lastDevices);
-      updateDetail(lastDevices.find(x => x.device_id === id) || null);
-      centerSelected();
-    }
+    function fmtTime(ts){ if (!ts) return "--"; return new Date(ts).toLocaleString(); }
+    function isOnline(ts){ return !!ts && (Date.now() - ts) <= 15000; }
 
-    function updateDetail(d){
-      if (!d){
-        elDSmoke.textContent = "--";
-        elDAlarm.textContent = "--";
-        elDGps.textContent = "--";
-        elDOnline.textContent = "--";
-        elDTime.textContent = "--";
-        return;
-      }
-      elDSmoke.textContent = (d.smoke ?? "--");
-      elDAlarm.textContent = d.alarm ? "DA" : "NE";
-      const gps = (typeof d.lat === "number" && typeof d.lon === "number")
-        ? `${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}`
-        : "N/A";
-      elDGps.textContent = gps;
-
+    function popupHtml(d){
       const online = isOnline(d.timestamp);
-      elDOnline.textContent = online ? "ONLINE" : "OFFLINE";
-      elDTime.textContent = fmtTime(d.timestamp);
+      const badgeCls = d.alarm ? "bad" : (online ? "good" : "warn");
+      const badgeText = d.alarm ? "ALARM" : (online ? "ONLINE" : "OFFLINE");
+      const gps = (typeof d.lat === "number" && typeof d.lon === "number") ? `${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}` : "N/A";
+      return `
+        <div class="popupTitle">${d.device_id}</div>
+        <div class="popupLine">Smoke: <b>${d.smoke ?? "--"}</b></div>
+        <div class="popupLine">GPS: <span class="mono">${gps}</span></div>
+        <div class="popupLine">Update: <span class="mono">${fmtTime(d.timestamp)}</span></div>
+        <div class="popupLine">Source: <span class="mono">${d.source ?? "?"}</span></div>
+        <div class="popupBadge ${badgeCls}">${badgeText}</div>
+      `;
     }
 
     function renderList(devs){
@@ -287,12 +221,35 @@
       elCount.textContent = `Uređaji: ${devs.length}`;
     }
 
+    function selectDevice(id){
+      selectedId = id;
+      renderList(lastDevices);
+      updateDetail(lastDevices.find(x => x.device_id === id) || null);
+      centerSelected();
+    }
+
+    function updateDetail(d){
+      if (!d){
+        elDSmoke.textContent = "--";
+        elDAlarm.textContent = "--";
+        elDGps.textContent = "--";
+        elDOnline.textContent = "--";
+        elDTime.textContent = "--";
+        return;
+      }
+      elDSmoke.textContent = (d.smoke ?? "--");
+      elDAlarm.textContent = d.alarm ? "DA" : "NE";
+      const gps = (typeof d.lat === "number" && typeof d.lon === "number") ? `${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}` : "N/A";
+      elDGps.textContent = gps;
+      elDOnline.textContent = isOnline(d.timestamp) ? "ONLINE" : "OFFLINE";
+      elDTime.textContent = fmtTime(d.timestamp);
+    }
+
     function fitMap(){
       const pts = [];
       markers.forEach(m => pts.push(m.getLatLng()));
-      if (pts.length === 0) return;
-      const bounds = L.latLngBounds(pts);
-      map.fitBounds(bounds.pad(0.25));
+      if (!pts.length) return;
+      map.fitBounds(L.latLngBounds(pts).pad(0.25));
     }
 
     function centerSelected(){
@@ -303,15 +260,41 @@
       m.openPopup();
     }
 
-    // ---------- DATA FETCH ----------
-    let lastDevices = [];
+    function renderHistory(list){
+      elAlarmList.innerHTML = "";
+      if (!list || !list.length){
+        elAlarmList.innerHTML = `<div class="small" style="margin-top:10px">Nema događaja još.</div>`;
+        return;
+      }
+
+      list.slice(0, 30).forEach(e => {
+        const row = document.createElement("div");
+        row.className = "hrow";
+        const badgeCls = e.type === "ALARM_ON" ? "bad" : "good";
+        row.innerHTML = `
+          <div class="top">
+            <div class="t1">${e.device_id}</div>
+            <div class="pill ${badgeCls}">${e.type}</div>
+          </div>
+          <div class="t2">
+            Smoke: <span class="mono">${e.smoke ?? "--"}</span> ·
+            ${fmtTime(e.timestamp)} · source: <span class="mono">${e.source ?? "?"}</span>
+          </div>
+        `;
+        elAlarmList.appendChild(row);
+      });
+    }
 
     async function tick(){
       try{
-        const r = await fetch("/api/devices", { cache:"no-store" });
-        const devs = await r.json();
+        const [rDev, rAlm] = await Promise.all([
+          fetch("/api/devices", { cache:"no-store" }),
+          fetch("/api/alarms", { cache:"no-store" })
+        ]);
 
-        // sort: alarm first, then newest
+        const devs = await rDev.json();
+        const alarms = await rAlm.json();
+
         devs.sort((a,b) => {
           const aa = a.alarm ? 1 : 0;
           const bb = b.alarm ? 1 : 0;
@@ -321,15 +304,15 @@
 
         lastDevices = devs;
         if (!selectedId && devs.length) selectedId = devs[0].device_id;
-        renderList(devs);
 
-        // Global status
+        renderList(devs);
+        renderHistory(alarms);
+
         const anyAlarm = devs.some(d => d.alarm);
         elGlobalStatus.textContent = anyAlarm ? "Status: ALARM" : "Status: OK";
         elGlobalStatus.style.borderColor = anyAlarm ? "rgba(239,68,68,.55)" : "rgba(22,163,74,.55)";
         elGlobalStatus.style.color = anyAlarm ? "#fecaca" : "#bbf7d0";
 
-        // Update markers
         devs.forEach(d => {
           const hasGps = (typeof d.lat === "number" && typeof d.lon === "number");
           if (!hasGps) return;
@@ -337,7 +320,7 @@
           const pos = [d.lat, d.lon];
           if (!markers.has(d.device_id)){
             const m = L.marker(pos).addTo(map);
-            m.bindPopup(popupHtml(d), { closeButton: true, autoClose: false });
+            m.bindPopup(popupHtml(d), { closeButton:true, autoClose:false });
             m.on("click", () => {
               selectedId = d.device_id;
               renderList(lastDevices);
@@ -351,7 +334,6 @@
           }
         });
 
-        // If selected exists, update detail card with latest
         updateDetail(devs.find(x => x.device_id === selectedId) || null);
 
       } catch(e){

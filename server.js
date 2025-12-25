@@ -10,15 +10,24 @@ app.use(express.json());
 // ====== CONFIG ======
 const THRESHOLD = 1800;
 
-// MQTT broker (demo)
+// MQTT broker
 const MQTT_URL = "mqtt://test.mosquitto.org:1883";
 const MQTT_SUB = "firecube/+/data";
 
 // ====== STATE (multi-device in RAM) ======
-// devices[device_id] = { device_id, smoke, alarm, lat, lon, timestamp, source }
 const devices = Object.create(null);
 
-// helper: upsert device
+// Alarm history (RAM)
+const alarmHistory = [];
+const MAX_HISTORY = 200; // koliko događaja čuvamo
+
+function now() { return Date.now(); }
+
+function pushHistory(evt) {
+  alarmHistory.unshift(evt);          // newest first
+  if (alarmHistory.length > MAX_HISTORY) alarmHistory.pop();
+}
+
 function updateDevice(d, source) {
   const device_id = (d.device_id || "unknown").toString();
 
@@ -26,17 +35,39 @@ function updateDevice(d, source) {
   const lat = (d.lat !== undefined && d.lat !== null) ? Number(d.lat) : null;
   const lon = (d.lon !== undefined && d.lon !== null) ? Number(d.lon) : null;
 
-  devices[device_id] = {
+  const prev = devices[device_id];
+  const prevAlarm = prev ? !!prev.alarm : false;
+
+  const alarm = smoke > THRESHOLD;
+
+  const row = {
     device_id,
     smoke,
-    alarm: smoke > THRESHOLD,
+    alarm,
     lat,
     lon,
-    timestamp: Date.now(),
+    timestamp: now(),
     source
   };
 
-  return devices[device_id];
+  devices[device_id] = row;
+
+  // log only on alarm state change
+  if (alarm !== prevAlarm) {
+    pushHistory({
+      id: row.timestamp + "-" + device_id,
+      device_id,
+      type: alarm ? "ALARM_ON" : "ALARM_OFF",
+      smoke,
+      lat,
+      lon,
+      timestamp: row.timestamp,
+      source
+    });
+  }
+
+  // also log "heartbeat" alarm events? (ne treba)
+  return row;
 }
 
 // ====== MQTT INGEST ======
@@ -67,7 +98,7 @@ mqttClient.on("message", (topic, message) => {
   }
 });
 
-// ====== HTTP INGEST (optional: WiFi test) ======
+// ====== HTTP INGEST (optional) ======
 app.post("/api/data", (req, res) => {
   const d = req.body || {};
   const row = updateDevice(d, "http");
@@ -76,20 +107,28 @@ app.post("/api/data", (req, res) => {
 });
 
 // ====== API ======
-// 1) lista svih uređaja (za mapu)
 app.get("/api/devices", (req, res) => {
   res.json(Object.values(devices));
 });
 
-// 2) jedan uređaj po id (za detalje)
 app.get("/api/device/:id", (req, res) => {
   const id = req.params.id;
   res.json(devices[id] || null);
 });
 
-// 3) kompatibilnost sa starim frontend-om
+// history: all
+app.get("/api/alarms", (req, res) => {
+  res.json(alarmHistory);
+});
+
+// history: per device
+app.get("/api/alarms/:id", (req, res) => {
+  const id = req.params.id;
+  res.json(alarmHistory.filter(a => a.device_id === id));
+});
+
+// compat: latest (newest device update)
 app.get("/api/latest", (req, res) => {
-  // vrati najnoviji uređaj po timestampu
   const list = Object.values(devices);
   if (list.length === 0) {
     return res.json({
