@@ -55,6 +55,7 @@
     .btn{border:1px solid var(--line); background:rgba(15,23,42,.7); color:var(--text); padding:9px 12px; border-radius:12px; cursor:pointer;}
     .btn:hover{border-color:#334155}
     .chip{padding:7px 10px; border-radius:999px; border:1px solid var(--line); background:rgba(15,23,42,.65); color:var(--muted); font-size:12px;}
+
     .card{background: linear-gradient(180deg, rgba(17,24,39,.9), rgba(15,23,42,.9)); border:1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow);}
     .sectionTitle{font-size:12px; color:var(--muted); margin:14px 0 8px;}
     .list{display:flex; flex-direction:column; gap:10px; margin-top:10px;}
@@ -89,10 +90,70 @@
     .hrow .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
     .hrow .t1{font-weight:800;font-size:13px}
     .hrow .t2{font-size:12px;color:var(--muted)}
+
+    /* ===== ALARM UI ADDITIONS ===== */
+    .alarmOverlay{
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(3px);
+      z-index:9999;
+    }
+    .alarmOverlay.hidden{ display:none; }
+
+    .alarmBox{
+      width:min(680px, 92vw);
+      border-radius: 18px;
+      border: 2px solid rgba(239,68,68,.85);
+      background: linear-gradient(180deg, rgba(127,29,29,.95), rgba(15,23,42,.92));
+      box-shadow: 0 18px 50px rgba(0,0,0,.55);
+      padding: 18px 18px 14px;
+      animation: pulse 1.1s infinite;
+    }
+    .alarmTitle{
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .4px;
+    }
+    .alarmText{
+      margin-top: 10px;
+      color: #fecaca;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    @keyframes pulse{
+      0%{ transform: scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+      50%{ transform: scale(1.02); box-shadow: 0 22px 70px rgba(239,68,68,.35); }
+      100%{ transform: scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+    }
+
+    .alarmBanner{
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(239,68,68,.7);
+      background: rgba(239,68,68,.18);
+      color: #fecaca !important;
+      font-weight: 900;
+      letter-spacing: .4px;
+      animation: blink 1.1s infinite;
+    }
+    @keyframes blink{
+      0%,100%{ filter: brightness(1); }
+      50%{ filter: brightness(1.6); }
+    }
   </style>
 </head>
 
 <body>
+  <!-- ===== ALARM OVERLAY (NEW) ===== -->
+  <div id="alarmOverlay" class="alarmOverlay hidden">
+    <div class="alarmBox">
+      <div class="alarmTitle">🔥 ALARM – DETEKTOVAN DIM / POŽAR</div>
+      <div class="alarmText" id="alarmText">--</div>
+      <button class="btn" id="btnSilence">Utišaj zvuk</button>
+    </div>
+  </div>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -285,6 +346,34 @@
       });
     }
 
+    // ===== ALARM overlay + sound (NEW) =====
+    let prevAnyAlarm = false;
+    let soundMuted = false;
+
+    const overlay = document.getElementById("alarmOverlay");
+    const alarmText = document.getElementById("alarmText");
+    const btnSilence = document.getElementById("btnSilence");
+
+    btnSilence.onclick = () => {
+      soundMuted = true;
+      overlay.classList.add("hidden");
+    };
+
+    function playAlarmBeep(){
+      if (soundMuted) return;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContext();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = 880;
+      g.gain.value = 0.08;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      setTimeout(() => { o.stop(); ctx.close(); }, 450);
+    }
+
     async function tick(){
       try{
         const [rDev, rAlm] = await Promise.all([
@@ -309,10 +398,43 @@
         renderHistory(alarms);
 
         const anyAlarm = devs.some(d => d.alarm);
+
+        // Global status text/colors
         elGlobalStatus.textContent = anyAlarm ? "Status: ALARM" : "Status: OK";
         elGlobalStatus.style.borderColor = anyAlarm ? "rgba(239,68,68,.55)" : "rgba(22,163,74,.55)";
         elGlobalStatus.style.color = anyAlarm ? "#fecaca" : "#bbf7d0";
 
+        // Banner blink class
+        if (anyAlarm) elGlobalStatus.classList.add("alarmBanner");
+        else elGlobalStatus.classList.remove("alarmBanner");
+
+        // Show overlay + beep only on OFF->ON transition
+        if (anyAlarm && !prevAnyAlarm) {
+          const alarmDevs = devs.filter(d => d.alarm);
+          const first = alarmDevs[0];
+
+          let gpsLine = "GPS: N/A";
+          if (typeof first.lat === "number" && typeof first.lon === "number") {
+            gpsLine = `GPS: ${first.lat.toFixed(6)}, ${first.lon.toFixed(6)}`;
+          }
+
+          alarmText.textContent =
+            `Uređaj: ${first.device_id} | Smoke: ${first.smoke} | ${gpsLine} | Vrijeme: ${new Date(first.timestamp).toLocaleString()}`;
+
+          overlay.classList.remove("hidden");
+          playAlarmBeep();
+
+          selectedId = first.device_id;
+          renderList(lastDevices);
+          updateDetail(first);
+          centerSelected();
+        }
+
+        if (!anyAlarm) {
+          overlay.classList.add("hidden");
+        }
+
+        // Update markers
         devs.forEach(d => {
           const hasGps = (typeof d.lat === "number" && typeof d.lon === "number");
           if (!hasGps) return;
@@ -335,6 +457,8 @@
         });
 
         updateDetail(devs.find(x => x.device_id === selectedId) || null);
+
+        prevAnyAlarm = anyAlarm;
 
       } catch(e){
         elGlobalStatus.textContent = "Status: ERROR";
