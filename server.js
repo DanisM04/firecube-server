@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 // ====== CONFIG ======
-const THRESHOLD = 1000;
+const THRESHOLD = 1800;
 
 // MQTT broker
 const MQTT_URL = "mqtt://test.mosquitto.org:1883";
